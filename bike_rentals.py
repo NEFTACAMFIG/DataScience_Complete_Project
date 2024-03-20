@@ -45,3 +45,96 @@ datasets = [df_1,df_2]
 for i in datasets:
   i.rename(columns={'instant':'rental_id', 'dteday':'date', 'yr':'year', 'mnth':'month', 'hr':'hour', 'weathersit':'weather_type', 'temp':'temperature', 'atemp':'adjusted_temperature', 'hum':'humidity',
                    'casual':'casual_rider', 'registered':'registered_rider', 'cnt':'count'}, inplace=True)
+
+# Decoding Data
+# Decoding Windspeed
+y = [ i for i in df_1['windspeed']*67]
+df_2['windspeed_d'] = y
+
+# Decoding Normalized Temperature
+t_min = -8
+t_max = 35
+normalized_temps = df_1['temperature'].values
+
+decoded_temps = [temp * (t_max - t_min) + t_min for temp in normalized_temps]
+df_2['temp_d'] = decoded_temps
+
+# Decoding Normalized Adjusted Temperature
+t_min = -16
+t_max = 50
+normalized_adjtemps = df_1['adjusted_temperature'].values
+
+decoded_adjtemps = [adjtemp * (t_max - t_min) + t_min for adjtemp in normalized_adjtemps]
+df_2['adjtemp_d'] = decoded_adjtemps
+
+# Decoding Humidity
+z = [ i for i in df_1['humidity']]
+df_2['humidity_d'] = z
+
+
+normalized_humidity = df_1['humidity'].values
+
+decoded_humidity = [hum * 100 for hum in normalized_humidity]
+df_2['humidity_d'] = decoded_humidity
+
+# Checking for Duplicates
+if df_1.duplicated().any():
+    print("\nThe DataFrame has duplicates.")
+else:
+    print("\nThe DataFrame does not have duplicates.")
+
+# Checking for Missing Values
+df_1.isnull().sum(axis=0)
+
+# Exploratory Data Analysis
+
+# Bike Rental vs Rider Type
+# First, we take the sum of casual riders and registered riders, grouped by year, and then we plot the respective pie charts
+
+# Taking the sum of casual and registered riders grouped by year (returns a Series)
+casual_riders = df_2.groupby('year')['casual_rider'].sum()
+registered_riders = df_2.groupby('year')['registered_rider'].sum()
+
+# Taking the sum of casual and registered riders combined for 2011 and 2012
+casual_riders_c = df_2["casual_rider"].sum()
+registered_riders_c = df_2["registered_rider"].sum()
+
+# Sorting casual rider sums by year and storing the values in the respective lists, "11" for the year 2011 and "12" for the year 2012
+casual_riders_11 = casual_riders[0]
+casual_riders_12 = casual_riders[1]
+
+# Sorting registered rider sums by year and storing the values in the respective lists, "11" for the year 2011 and "12" for the year 2012
+registered_riders_11 = registered_riders[0]
+registered_riders_12 = registered_riders[1]
+
+# Printing the numbers to verify correctness
+print("Combined: ", casual_riders_c, registered_riders_c)
+print("2011: ", casual_riders_11, registered_riders_11)
+print("2012: ", casual_riders_12, registered_riders_12)
+
+# Defining data for the pie charts, "11" for the year 2011 and "12" for the year 2012
+labels = ['Casual Riders', 'Registered Riders']
+sizes = [casual_riders_c, registered_riders_c]
+sizes_11 = [casual_riders_11, registered_riders_11]
+sizes_12 = [casual_riders_12, registered_riders_12]
+
+# Pie chart for 2011
+plt.pie(sizes_11, labels=labels, autopct='%1.1f%%', startangle=90)
+fig1 = plt.gcf()
+plt.axis('equal')
+plt.title('Distribution of Riders in 2011')
+plt.show()
+
+# Pie chart for 2012
+plt.pie(sizes_12, labels=labels, autopct='%1.1f%%', startangle=90)
+fig2 = plt.gcf()
+plt.axis('equal')
+plt.title('Distribution of Riders in 2012')
+plt.show()
+
+# Combined pie chart for 2011 and 2012
+plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+fig3 = plt.gcf()
+plt.axis('equal')
+plt.title('Combined distribution of Riders in 2011 and 2012')
+plt.show()
