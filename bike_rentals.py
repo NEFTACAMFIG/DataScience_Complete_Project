@@ -138,3 +138,187 @@ fig3 = plt.gcf()
 plt.axis('equal')
 plt.title('Combined distribution of Riders in 2011 and 2012')
 plt.show()
+
+# Bike Rental at Different Time Intervals
+months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+months_t = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+fig = px.box(df_2, x='month', y='count', title='Bike rental count per month',
+             labels={'count': 'Total Rentals', 'month': 'Month'})
+fig.update_layout(boxgroupgap= 0.1, boxgap= 0.2, width = 900, font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.5,
+                  xaxis = dict(tickmode = 'array', tickvals = months, ticktext = months_t))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, tick0=1, dtick=1)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/month.html")
+
+# Bike rental per weekday
+weekday_names = ['Saturday', 'Sunday','Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday' ]
+fig = px.box(df_2, x='weekday', y='count', color = 'weekday', title='Bike rental count per weekday',
+             labels={'count': 'Total Rentals', 'weekday': 'Weekdays'})
+
+fig.data[0].name = 'Friday'
+fig.data[1].name = 'Saturday'
+fig.data[2].name = 'Sunday'
+fig.data[3].name = 'Monday'
+fig.data[4].name = 'Tuesday'
+fig.data[5].name = 'Wednesday'
+fig.data[6].name = 'Thursday'
+
+
+fig.update_xaxes(categoryorder='array', categoryarray=weekday_names)
+fig.update_layout(boxgroupgap= 0.1, boxgap= 0.2, width = 900, font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.5,
+    xaxis = dict(
+        tickmode = 'array',
+        tickvals = [0,1,2,3,4,5,6],
+        ticktext = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+    ))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/weekday.html")
+
+# Bike rental per hour
+df_weekday = df_2.copy()
+df_weekday['weekday'] = df_weekday['weekday'].replace({0:'Sunday', 1:'Monday',2:'Tuesday', 3:'Wednesday', 4:'Thursday', 5:'Friday', 6:'Saturday'})
+hour_day_df = df_weekday.groupby(["hour", "weekday"])["count"].mean().to_frame().reset_index()
+
+df_season = df_2.copy()
+df_season['season'] = df_season['season'].replace({1:'Winter', 2:'Spring', 3:'Summer', 4:'Autumn'})
+season_df = df_season.groupby(["hour", "season"])["count"].mean().to_frame().reset_index()
+
+df_weather = df_2.copy()
+df_weather['weather_type'] = df_weather['weather_type'].replace({1:'Clear', 2:'Mist', 3:'Light Rain', 4:'Heavy Rain'})
+weather_df = df_weather.groupby(["hour", "weather_type"])["count"].mean().to_frame().reset_index()
+
+fig = px.line(hour_day_df, x='hour', y='count', color='weekday',
+              title="Bike Rental Count vs Hour-Weekday comparison",
+              labels={
+                     "hour": "Time of the day (Hrs)",
+                     "count": "Total Bike Rentals (Average)",
+                     "weekday": "Weekday"
+                 },
+              category_orders={"weekday": ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']})
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, range=[0, 600])
+fig.show()
+# fig.write_html("/content/drive/MyDrive/Imagenes/uno.html")
+
+fig = px.line(season_df, x='hour', y='count', color='season',
+              title="Rental Bikes vs Hour-Season comparison",
+              labels={
+                     "hour": "Time of the day (Hrs)",
+                     "count": "Total Bike Rentals (Average)",
+                     "season": "Season"
+                 },
+              category_orders={"season": ['Winter', 'Spring', 'Summer', 'Autumn']})
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10, range=[0, 600])
+fig.show()
+# fig.write_html("/content/drive/MyDrive/Imagenes/dos.html")
+
+fig = px.line(weather_df, x='hour', y='count', color='weather_type',
+              title="Bike Rental Count vs Hour-Weather comparison",
+              labels={
+                     "hour": "Time of the day (Hrs)",
+                     "count": "Total Bike Rentals (Average)",
+                     "weather_type": "Weather"
+                 },
+              category_orders={"weather_type": ['Clear', 'Mist', 'Light Rain', 'Heavy Rain']})
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, range=[0, 550])
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/tres.html")
+
+# Bike rental per day over 2 years
+df_d = df_2.copy()
+df_d['year'] = df_d['year'].replace({0:'2011', 1:'2012'})
+df_d['date'] = df_d['date'].astype('datetime64[ns]')
+
+h_d = df_d.groupby(['date', 'year'])['count'].sum()
+df_d2 = pd.DataFrame({'suma' : h_d}).reset_index()
+
+#df_d2
+
+fig = px.bar(df_d2, x="date", y="suma", color = 'year',
+            title="Bike rental per day during all 2 years",
+            labels={
+                     "date": "Day",
+                     "suma": "Total Bike Rentals",
+                     "year": "Year"
+                 })
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/perday.png")
+
+# Bike rental at different weather situations
+# Bike rental vs windspeed
+df_w = df_2.copy()
+
+df_ws = df_w.groupby(['windspeed_d'])['count'].sum()
+df_ws = pd.DataFrame({'suma' : df_ws}).reset_index()
+
+fig = px.area(df_ws, x="windspeed_d", y="suma",
+            title="Bike rental vs Windspeed",
+            labels={
+                     "windspeed_d": "Windspeed",
+                     "suma": "Total Bike Rentals"
+                 })
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+
+# Bike rental vs decoded temperature
+fig = px.box(df_2, x='temp_d', y="count", width=1300, height=700,
+             title='Box Plot of Total Rentals vs. Temperature',
+             labels={"temp_d": "Temperature [C]",
+                     "count": "Bike Rentals"
+                 })
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.5)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10, tick0=-7, dtick=5)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+
+# Bike rental vs humidity
+f = df_2.groupby(['humidity_d'])['count'].sum()
+df_h = pd.DataFrame({'suma' : f}).reset_index()
+
+fig = px.bar(df_h, x="humidity_d", y="suma",
+            title="Bike rental vs Humidity",
+            labels={
+                     "humidity_d": "Humidity",
+                     "suma": "Total Bike Rentals"
+                 })
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+
+# Bike rental vs season
+df_s = df_2.copy()
+df_s['season'] = df_s['season'].replace({1:'Winter', 2:'Spring', 3:'Summer', 4:'Autumn'})
+
+g = df_s.groupby(['season'])['count'].sum()
+df_s2 = pd.DataFrame({'suma' : g}).reset_index()
+
+fig = px.bar(df_s2, x="season", y="suma", color = 'season', text_auto = '.2s',
+            title="Bike rental per Season",
+            labels={
+                     "season": "Season",
+                     "suma": "Total Bike Rentals"
+                 },
+             category_orders={"season": ['Winter', 'Spring', 'Summer', 'Autumn']})
+
+fig.update_layout(font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.47, bargap=0.5)
+fig.update_traces(textfont_size=18, textangle=0, textposition="outside", cliponaxis=False)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, range=[0, 1200000])
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/season.html")
+
+# VII. Bike rental at different day types
