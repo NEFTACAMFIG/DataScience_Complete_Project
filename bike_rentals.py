@@ -322,3 +322,112 @@ fig.show()
 #fig.write_html("/content/drive/MyDrive/Imagenes/season.html")
 
 # VII. Bike rental at different day types
+
+# a. Bike rental vs. holiday
+fig = px.box(df_1, x='holiday', y='count', title='Bike rental count vs. type of day: holiday',
+             labels={'count': 'Total Rentals', 'holiday': 'Type of day'})
+fig.update_layout(boxgroupgap= 0.1, boxgap= 0.1, width = 700, font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.5,
+                  xaxis = dict(tickmode = 'array', tickvals = [0,1], ticktext = ['Non-Holiday', 'Holiday']))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/holiday.html")
+
+# b. Bike rental vs. working day
+fig = px.box(df_1, x='workingday', y='count', title='Bike rental count vs. type of day: working day',
+             labels={'count': 'Total Rentals', 'workingday': 'Type of day'})
+fig.update_layout(boxgroupgap= 0.1, boxgap= 0.1, width = 700, font_color="#007CD8", title=dict(font=dict(size=25)), title_x=0.5,
+                  xaxis = dict(tickmode = 'array', tickvals = [0,1], ticktext = ['Non-Workingday', 'Workingday']))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/working_day.html")
+
+# F. Dealing with Outliers
+df_3 = df_1.copy()
+
+cont_vars = ['temperature', 'adjusted_temperature', 'humidity', 'windspeed']
+
+plt.figure(figsize=(15, 40))
+i = 0
+for col in cont_vars:
+  i += 1
+  plt.subplot(9, 4, i)
+  plt.boxplot(df_3[col])
+  plt.title('{} boxplot'.format(col))
+#plt.savefig('/content/drive/MyDrive/Imagenes/outliers.png')
+plt.show()
+
+wins_dict = {}
+df_3 = df_1.copy()
+
+winsorization_limits = {
+    'variable3': (0.002, 0.0),
+    'variable4': (0, 0.02)
+}
+plt.figure(figsize=(10, 5))
+
+for i, (variable_key, limits) in enumerate(winsorization_limits.items()):
+    col = cont_vars[i + 2]  # We will skip temperature variables as they don't have outliers
+    wins_data = winsorize(df_3[col], limits=limits)
+    wins_dict[col] = wins_data
+
+    df_3[col] = wins_data
+
+    plt.subplot(1, 2, i + 1)
+    plt.boxplot(df_3[col])
+    plt.title('{} boxplot (Winsorized: {} - {})'.format(col, limits[0], limits[1]))
+
+plt.tight_layout()
+#plt.savefig('/content/drive/MyDrive/Imagenes/no_outliers.png')
+plt.show()
+
+# Changes will be embedded in df_3 dataset
+for col in cont_vars:
+    if col in wins_dict:
+        df_3[col] = wins_dict[col]
+
+# 1. Correlation Matrix
+relevant_columns= df_3.iloc[:,2:17]
+correlation_matrix = relevant_columns.corr()
+mask = np.triu(np.ones_like(correlation_matrix, dtype=bool))
+
+plt.figure(figsize=(12, 8))
+sns.heatmap(correlation_matrix, mask=mask, annot=True, cmap='coolwarm', fmt=".2f", vmin=-1, vmax=1)
+#plt.title('Correlation Matrix')
+plt.show()
+
+# 2. VIF Calculation
+df_4 = df_3.copy()
+
+def calc_vif(X):
+    vif=pd.DataFrame()
+    vif["variables"] = X.columns
+    vif["VIF"] = [variance_inflation_factor(X.values, i) for i in range(X.shape[1])]
+    return(vif)
+
+VIF = df_4.drop(columns = ['rental_id','date','count', 'casual_rider', 'registered_rider'])
+
+calc_vif(VIF)
+
+# Second Iteration
+VIF = VIF.drop(columns = ['adjusted_temperature'])
+calc_vif(VIF)
+
+# Third Iteration
+VIF = VIF.drop(columns = ['season'])
+calc_vif(VIF)
+
+t = [i for i in VIF]
+print(t)
+
+df_5 = df_3.copy()
+Y = df_5['count']
+SFS = df_5.drop(columns = ['rental_id','date','count', 'casual_rider', 'registered_rider'])
+lin_reg = LinearRegression()
+sfs1 = sfs(lin_reg, k_features = 10, forward = False, verbose = 1, scoring = 'neg_mean_squared_error')
+sfs1 = sfs1.fit(SFS,Y)
+fin_names = list(sfs1.k_feature_names_)
+print(fin_names)
+
+# 3. Building Models
