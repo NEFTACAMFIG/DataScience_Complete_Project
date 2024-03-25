@@ -431,3 +431,126 @@ fin_names = list(sfs1.k_feature_names_)
 print(fin_names)
 
 # 3. Building Models
+# A. Multivariable Linear Regression Model
+ret = df_3['count']
+
+baby_blue = '#448EE4'
+plt.figure(figsize=(10, 6))
+ax = sns.histplot(ret, kde=True, color=baby_blue, bins=30, alpha=0.3)
+ax.set_title('Distribution of Count Data')
+ax.set_xlabel('Count')
+ax.set_ylabel('Frequency')
+
+# Descriptive Statistics
+print('STATISTICS:')
+print('Sample size: ', len(ret))
+print('Mean: ', ret.mean())
+print('Variance: ', ret.var())
+print('Skewness: ', ret.skew())
+print('Kurtosis: ', ret.kurt())
+print('Maximum: ', ret.max())
+print('Minimum: ', ret.min())
+print('Jarque-Bera Test Results:', jarque_bera(ret))
+print('Augmented Dickey-Fuller Test Results:', adf(ret, maxlag=1)[0:2])
+print('Autocorrelation:', acf(ret, nlags=5))
+print('Partial-Autocorrelation:', pacf(ret, nlags=5))
+
+# plt.savefig('/content/drive/MyDrive/Imagenes/skewness.png')
+plt.show()
+
+# I. Logarithmic Scale Transformation
+plt.hist((np.log(df_3.loc[:,'count'])))
+plt.show()
+skewness = stats.skew(df_3['count'])
+print(f"Skewness after log transformation: {skewness}")
+
+# II. Square Root Transformation
+plt.hist((np.sqrt(df_3.loc[:,'count'])))
+plt.show()
+
+df_sqrt = np.sqrt(df_3['count'])
+skewness = stats.skew(df_sqrt)
+print(f"Skewness after sqrt transformation: {skewness}")
+
+# III. Box-Cox Transformation
+df_4 = df_3.copy()
+
+df_4['transformed_count'], lambda_value = boxcox(df_3['count'] + 1)
+
+sns.set(rc={'axes.facecolor':'lightgray', 'figure.facecolor':'white'})
+
+fig, ax = plt.subplots()
+sns.distplot(df_4['transformed_count'], hist=True, kde=True,
+             bins=int(180/5), color = 'darkblue',
+             hist_kws={'edgecolor':'black'},
+             kde_kws={'linewidth': 2})
+# plt.savefig('/content/drive/MyDrive/Imagenes/noskewness.png')
+fig.show()
+skewness_after_boxcox = skew(df_4['transformed_count'], nan_policy='omit')
+print(f"Skewness after Box-Cox transformation: {skewness_after_boxcox}")
+
+# Regression Model
+X = df_4.drop(columns = ['rental_id','date','count', 'transformed_count', 'casual_rider', 'registered_rider','month', 'temperature'])
+y = df_4['transformed_count']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+linear_reg_model = LinearRegression()
+linear_reg_model.fit(X_train, y_train)
+
+
+y_pred = linear_reg_model.predict(X_test)
+
+mae_mv = mean_absolute_error(y_test, y_pred)
+mse_mv = mean_squared_error(y_test, y_pred, squared=False)
+r2_mv = r2_score(y_test, y_pred)
+
+# Evaluation of the model
+print("Mean Absolute Error:", mae_mv)
+print("Root Mean Squared Error:", sqrt(mse_mv))
+print("R-squared Value:", r2_mv)
+
+comparison_df = pd.DataFrame({'Real': y_test, 'Predicted': y_pred})
+
+# Using Features from VIF selection
+X = df_4.drop(columns=['rental_id', 'date','transformed_count', 'count', 'casual_rider', 'registered_rider', 'month', 'temperature'])
+y = df_4['transformed_count']
+
+# Backward elimination with a 5% significance level
+def backward_elimination(X, y, feature_names, significance_level=0.05):
+    while True:
+        X_with_intercept = sm.add_constant(X)
+        model = sm.OLS(y, X_with_intercept).fit()
+
+        # Getting the feature with the highest p-value
+        max_p_value = model.pvalues.drop('const').max()
+        if max_p_value > significance_level:
+            max_p_value_feature = model.pvalues.drop('const').idxmax()
+            X = X.drop(columns=[max_p_value_feature])
+            feature_names = feature_names.drop(max_p_value_feature)
+            print(f'Removing feature: {max_p_value_feature}, P-value: {max_p_value:.4f}')
+        else:
+            break
+
+    return X, feature_names
+
+selected_feature_names = X.columns
+X_selected, selected_feature_names = backward_elimination(X, y, selected_feature_names)
+
+X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.2, random_state=42)
+
+# Fitting our Linear Regression model with Backward Elimination
+linear_reg_model = LinearRegression()
+linear_reg_model.fit(X_train, y_train)
+
+y_pred = linear_reg_model.predict(X_test)
+
+# Evaluation of the model
+print("Mean Absolute Error:", mean_absolute_error(y_test, y_pred))
+print("Root Mean Squared Error:", sqrt(mean_squared_error(y_test, y_pred, squared=False)))
+print("R-squared Value:", r2_score(y_test, y_pred))
+
+print("Selected Features:", selected_feature_names)
+comparison_df.head(10)
+
+# IV. Residual Analysis
