@@ -554,3 +554,105 @@ print("Selected Features:", selected_feature_names)
 comparison_df.head(10)
 
 # IV. Residual Analysis
+
+# Creating a ResidualsPlot
+visualizer = ResidualsPlot(linear_reg_model)
+
+visualizer.fit(X_train, y_train)
+visualizer.score(X_test, y_test)
+
+visualizer.ax.tick_params(axis='both', labelsize=14)
+visualizer.ax.set_xlabel('X Axis Title', fontsize=16)
+visualizer.ax.set_ylabel('Y Axis Title', fontsize=16)
+visualizer.show()
+
+# Performing the Breusch-Pagan test
+X_test_with_constant = sm.add_constant(X_test)
+residuals = y_test - linear_reg_model.predict(X_test)
+
+_, p_value, _, _ = het_breuschpagan(residuals, X_test_with_constant)
+print(f"P-value from Breusch-Pagan test: {p_value}")
+
+if p_value < 0.05:
+    print("The test suggests the presence of heteroscedasticity.")
+else:
+    print("The test does not suggest the presence of heteroscedasticity.")
+
+v_t = [i for i in y_test]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=v_t, y=y_pred,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=v_t, y=v_t,
+                    mode='markers',
+                    name='Test Values'))
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+
+# Polynomial Regression Model
+X = df_4.drop(columns=['rental_id', 'count','date', 'casual_rider', 'registered_rider', 'month', 'temperature', 'transformed_count'])
+y = df_4['transformed_count']
+
+X_train, X_test, y_train, y_testp = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Fitting polynomial features
+degree = 3
+poly = PolynomialFeatures(degree)
+X_train_poly = poly.fit_transform(X_train)
+X_test_poly = poly.transform(X_test)
+
+scaler = StandardScaler()
+X_train_poly_scaled = scaler.fit_transform(X_train_poly)
+X_test_poly_scaled = scaler.transform(X_test_poly)
+
+poly_reg_model = LinearRegression()
+poly_reg_model.fit(X_train_poly_scaled, y_train)
+
+y_pred_poly = poly_reg_model.predict(X_test_poly_scaled)
+
+mae_p = mean_absolute_error(y_testp, y_pred_poly)
+mse_p =mean_squared_error(y_testp, y_pred_poly, squared=False)
+r2_p = r2_score(y_testp, y_pred_poly)
+
+print("Mean Absolute Error (Polynomial Regression):", mae_p)
+print("Root Mean Squared Error (Polynomial Regression):", mse_p)
+print("R-squared Value (Polynomial Regression):", r2_p)
+
+# Checking Heteroscedascity
+v_p = [i for i in y_testp]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=v_p, y=y_pred_poly,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=v_p, y=v_p,
+                    mode='markers',
+                    name='Test Values'))
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+
+fig.show()
+
+# Residual Analysis
+
+# Residuals
+residuals_poly = y_test - y_pred_poly
+
+plt.figure(figsize=(10, 6))
+plt.scatter(y_pred_poly, residuals_poly)
+plt.axhline(y=0, color='r', linestyle='--')
+plt.title('Residual Plot (Polynomial Regression)',fontsize=16)
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.xlabel('Predicted Values', fontsize=16)
+plt.ylabel('Residuals', fontsize=16)
+plt.tick_params(axis='both', labelsize=16)
+plt.show()
