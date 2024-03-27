@@ -656,3 +656,306 @@ plt.xlabel('Predicted Values', fontsize=16)
 plt.ylabel('Residuals', fontsize=16)
 plt.tick_params(axis='both', labelsize=16)
 plt.show()
+
+# C. Decision Tree Model
+
+# Columns dropped: temperature + month
+
+# Splitting the data into training and testing sets
+X = df_3.drop(columns = ['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).values
+Y = df_3[['count']].values
+
+X_train, X_test, y_train, y_test= train_test_split(X,Y, test_size=0.2)
+
+# Initializing the decision tree regressor
+dt = DecisionTreeRegressor()
+
+# Training the model
+dt.fit(X_train, y_train)
+
+# Making predictions
+Y_train_pred = dt.predict(X_train)
+Y_pred_dt = dt.predict(X_test)
+
+# Evaluating the model
+r2_train = r2_score(y_train, Y_train_pred)
+mae_train = mean_absolute_error(y_train, Y_train_pred)
+rmse_train = sqrt(mean_squared_error(y_train, Y_train_pred))
+
+r2 = r2_score(y_test, Y_pred_dt)
+mae = mean_absolute_error(y_test, Y_pred_dt)
+rmse = sqrt(mean_squared_error(y_test, Y_pred_dt))
+
+print(f'Training performance \n R2: {r2_train}, \n MAE: {mae_train}, \n RMSE: {rmse_train}')
+print(f'\nTesting performance \n R2: {r2}, \n MAE: {mae}, \n RMSE: {rmse}')
+
+# I. Feature Selection
+feature_importance = dt.feature_importances_
+
+feature_importance_df = pd.DataFrame({'Feature': df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).columns, 'Importance': feature_importance})
+
+feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Importance', y='Feature', data=feature_importance_df, palette='viridis', hue='Feature', legend=False)
+plt.title('Decision tree feature importance')
+plt.show()
+
+# II. Checking Heteroscedascity
+dt_x = [i[0] for i in y_test]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=dt_x, y=Y_pred_dt,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=dt_x, y=dt_x,
+                    mode='markers',
+                    name='Test Values'))
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+fig.add_annotation(x=150, y=950,
+            text=f'       MSE: {rmse:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=900,
+            text=f'    MAE: {mae:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=850,
+            text=f'R2: {r2:.2f}',
+            showarrow=False)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+
+fig.show()
+
+# III. K-Fold cross validation
+# K-fold CV
+kf = KFold(n_splits=5)
+
+train_r2_cv = cross_val_score(dt, X_train, y_train, cv=kf)
+y_train_pred_cv = cross_val_predict(dt, X_train, y_train, cv=kf)
+
+print('K-Fold training values')
+for i in range(len(train_r2_cv)):
+  print(f'Fold {i+1}: ', train_r2_cv[i])
+print('Average R2: ', np.mean(train_r2_cv))
+
+y_test_pred = dt.predict(X_test)
+test_rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
+test_r2 = r2_score(y_test, y_test_pred)
+print('\nK-Fold testing values')
+print('R2: ', test_r2)
+
+# Hyperparameter tunning
+# Creating a function to compute mse, mae and r2 score calculations
+def evaluate_model(model, X, Y):
+    predictions = model.predict(X)
+    rmse = sqrt(mean_squared_error(Y, predictions))
+    mae = mean_absolute_error(Y, predictions)
+    r2 = r2_score(Y, predictions)
+    return rmse, mae, r2
+
+# Defining random parameter to initiate the randomized cv search
+param_dist = {
+    'max_depth': [None] + [int(x) for x in np.linspace(1, 20, num=5)],
+    'min_samples_split': randint(2, 20),
+    'min_samples_leaf': randint(1, 20),
+}
+
+dt = DecisionTreeRegressor(random_state=42)
+dt.fit(X_train, y_train)
+
+random_search = RandomizedSearchCV(
+    dt, param_distributions=param_dist, n_iter=10, cv=5, random_state=42, n_jobs=-1
+)
+
+random_search.fit(X_train, y_train)
+
+print('Best Hyperparameters from randomized search')
+print(random_search.best_params_)
+
+best_dt_model = DecisionTreeRegressor(
+    max_depth=random_search.best_params_['max_depth'],
+    min_samples_split=random_search.best_params_['min_samples_split'],
+    min_samples_leaf=random_search.best_params_['min_samples_leaf'],
+    random_state=42
+)
+
+best_dt_model.fit(X_train, y_train)
+
+# Evaluation of the default model on the test set
+test_rmse_default, test_mae_default, test_r2_default = evaluate_model(dt, X_test, y_test)
+
+# Evaluation of the best model obtained from random search on the test set
+test_rmse_best, test_mae_best, test_r2_best = evaluate_model(best_dt_model, X_test, y_test)
+
+rmse_improvement = ((test_rmse_default - test_rmse_best) / test_rmse_default) * 100
+mae_improvement = ((test_mae_default - test_mae_best) / test_mae_default) * 100
+r2_improvement = ((test_r2_best - test_r2_default) / np.abs(test_r2_default)) * 100
+
+print('\nPercentage Improvement from Default to Best Random Search Model:')
+print(f'Root Mean Squared Error: {rmse_improvement:.2f}%')
+print(f'Mean Absolute Error: {mae_improvement:.2f}%')
+print(f'R2 Score improvement: {r2_improvement:.2f}%')
+print('\nRMSE: ', test_rmse_best)
+print('MAE: ', test_mae_best)
+print('R2: ', test_r2_best)
+
+X_train, X_test, y_train, y_test= train_test_split(X,Y, test_size=0.2)
+def evaluate_model(model, X, Y):
+    predictions = model.predict(X)
+    rmse = sqrt(mean_squared_error(Y, predictions))
+    mae = mean_absolute_error(Y, predictions)
+    r2 = r2_score(Y, predictions)
+    return rmse, mae, r2
+
+best_dt_model = DecisionTreeRegressor(
+    max_depth=20,
+    min_samples_split=3,
+    min_samples_leaf=6,
+    random_state=42
+)
+
+best_dt_model.fit(X_train, y_train)
+
+Y_pred_best = best_dt_model.predict(X_test)
+
+test_rmse_best, test_mae_best, test_r2_best = evaluate_model(best_dt_model, X_test, y_test)
+
+print('\nRMSE: ', test_rmse_best)
+print('MAE: ', test_mae_best)
+print('R2: ', test_r2_best)
+
+# Visualizing results
+dt_v = [i[0] for i in y_test]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=dt_v, y=Y_pred_best,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=dt_v, y=dt_v,
+                    mode='markers',
+                    name='Test Values'))
+
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+fig.add_annotation(x=150, y=950,
+            text=f'     MSE: {test_rmse_best:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=900,
+            text=f'    MAE: {test_mae_best:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=850,
+            text=f'R2: {test_r2_best:.2f}',
+            showarrow=False)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+
+fig.show()
+
+# Analizing the model changing the independent variables
+
+# Split the data into training and testing sets
+X = df_3.drop(columns = ['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'adjusted_temperature', 'month']).values
+Y = df_3[['count']].values
+
+X_train, X_test, y_train, y_test= train_test_split(X,Y, test_size=0.3)
+
+# Initialize the decision tree regressor
+model = DecisionTreeRegressor()
+
+# Train the model
+model.fit(X_train, y_train)
+
+# Make predictions
+Y_train_pred = model.predict(X_train)
+Y_pred = model.predict(X_test)
+
+# Evaluate the model
+r2_train = r2_score(y_train, Y_train_pred)
+mae_train = mean_absolute_error(y_train, Y_train_pred)
+mse_train = mean_squared_error(y_train, Y_train_pred)
+
+r2 = r2_score(y_test, Y_pred)
+mae = mean_absolute_error(y_test, Y_pred)
+mse = mean_squared_error(y_test, Y_pred)
+
+print(f"Training performance \n R2: {r2_train}, MAE: {mae_train}, MSE: {mse_train}")
+print(f"Testing performance \n R2: {r2}, MAE: {mae}, MSE: {mse}")
+
+
+feature_importance = model.feature_importances_
+
+feature_importance_df = pd.DataFrame({'Feature': df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'adjusted_temperature', 'month']).columns, 'Importance': feature_importance})
+
+feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Importance', y='Feature', data=feature_importance_df, palette='viridis')
+plt.title('Decision Tree - Feature Importance')
+plt.show()
+
+
+# Create scatter plot
+plt.scatter(Y_pred, y_test)
+plt.plot([min(Y_pred), max(Y_pred)], [min(Y_pred), max(Y_pred)], 'k--', lw=2)
+plt.xlabel('Predicted values')
+plt.ylabel('Actual values')
+plt.title('Scatter plot of predicted vs actual values')
+
+# Add evaluation metrics to plot
+plt.text(8, 40, f'MSE: {mse:.2f}\nMAE: {mae:.2f}\nR2: {r2:.2f}', fontsize=13, ha='left')
+
+plt.show()
+
+# Split the data into training and testing sets
+X = df_3.drop(columns = ['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'adjusted_temperature', 'season']).values
+Y = df_3[['count']].values
+
+X_train, X_test, y_train, y_test= train_test_split(X,Y, test_size=0.3)
+
+# Initialize the decision tree regressor
+model = DecisionTreeRegressor()
+
+# Train the model
+model.fit(X_train, y_train)
+
+# Make predictions
+Y_train_pred = model.predict(X_train)
+Y_pred = model.predict(X_test)
+
+# Evaluate the model
+r2_train = r2_score(y_train, Y_train_pred)
+mae_train = mean_absolute_error(y_train, Y_train_pred)
+mse_train = mean_squared_error(y_train, Y_train_pred)
+
+r2 = r2_score(y_test, Y_pred)
+mae = mean_absolute_error(y_test, Y_pred)
+mse = mean_squared_error(y_test, Y_pred)
+
+print(f"Training performance \n R2: {r2_train}, MAE: {mae_train}, MSE: {mse_train}")
+print(f"Testing performance \n R2: {r2}, MAE: {mae}, MSE: {mse}")
+
+
+feature_importance = model.feature_importances_
+
+feature_importance_df = pd.DataFrame({'Feature': df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'adjusted_temperature', 'season']).columns, 'Importance': feature_importance})
+
+feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Importance', y='Feature', data=feature_importance_df, palette='viridis')
+plt.title('Decision Tree - Feature Importance')
+plt.show()
+
+
+# Create scatter plot
+plt.scatter(Y_pred, y_test)
+plt.plot([min(Y_pred), max(Y_pred)], [min(Y_pred), max(Y_pred)], 'k--', lw=2)
+plt.xlabel('Predicted values')
+plt.ylabel('Actual values')
+plt.title('Scatter plot of predicted vs actual values')
+
+# Add evaluation metrics to plot
+plt.text(8, 40, f'MSE: {mse:.2f}\nMAE: {mae:.2f}\nR2: {r2:.2f}', fontsize=13, ha='left')
+
+plt.show()
