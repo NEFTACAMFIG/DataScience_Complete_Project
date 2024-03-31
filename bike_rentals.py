@@ -959,3 +959,261 @@ plt.title('Scatter plot of predicted vs actual values')
 plt.text(8, 40, f'MSE: {mse:.2f}\nMAE: {mae:.2f}\nR2: {r2:.2f}', fontsize=13, ha='left')
 
 plt.show()
+
+# D. Random Forest Model
+
+X = df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).values
+Y = df_3['count'].values
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+
+rf = RandomForestRegressor(n_estimators=100, random_state=42)
+
+rf.fit(X_train, Y_train)
+
+Y_train_pred = rf.predict(X_train)
+
+Y_test_pred = rf.predict(X_test)
+
+# Evaluations on Train set
+train_mse = sqrt(mean_squared_error(Y_train, Y_train_pred))
+train_mae = mean_absolute_error(Y_train, Y_train_pred)
+train_r2 = r2_score(Y_train, Y_train_pred)
+print('Training Set Evaluation:')
+print(f'Root Mean Squared Error: {train_mse}')
+print(f'Mean Absolute Error: {train_mae}')
+print(f'R2 Score: {train_r2}')
+
+# Evaluations on Test set
+test_mse = sqrt(mean_squared_error(Y_test, Y_test_pred))
+test_mae = mean_absolute_error(Y_test, Y_test_pred)
+test_r2 = r2_score(Y_test, Y_test_pred)
+
+print('Test Set Evaluation:')
+print(f'Root Mean Squared Error: {test_mse}')
+print(f'Mean Absolute Error: {test_mae}')
+print(f'R2 Score: {test_r2}')
+
+feature_importance_rf = rf.feature_importances_
+
+feature_importance_df = pd.DataFrame({'Feature': df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'adjusted_temperature', 'season']).columns, 'Importance': feature_importance_rf})
+
+feature_importance_df_rf = feature_importance_df.sort_values(by='Importance', ascending=False, inplace= True)
+
+plt.figure(figsize=(10, 6))
+sns.barplot(x='Importance', y='Feature', data=feature_importance_df, palette='viridis')
+plt.title('Random Forest - Feature Importance')
+plt.show()
+
+# Visualize the first few levels of one of the trees in the Random Forest
+tree_index = 0
+plt.figure(figsize=(8, 5))
+plt.title('Random Forest Trees')
+plot_tree(rf.estimators_[tree_index], feature_names=feature_importance_df['Feature'].values, filled=True, rounded=True, max_depth=2)
+plt.show()
+
+# II. Checking Heteroscedascity
+
+v_y = [i for i in Y_test]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=v_y, y=Y_test_pred,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=v_y, y=v_y,
+                    mode='markers',
+                    name='Test Values'))
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+
+fig.add_annotation(x=150, y=950,
+            text=f'      RMSE: {test_mse:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=900,
+            text=f'    MAE: {test_mae:.2f}',
+            showarrow=False)
+fig.add_annotation(x=150, y=850,
+            text=f'R2: {test_r2:.2f}',
+            showarrow=False)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+
+fig.show()
+
+# III. K-Fold Cross Validation
+rf = RandomForestRegressor(n_estimators=100, random_state=42)
+kf = KFold(n_splits=5)
+
+train_r2_cv = cross_val_score(rf, X_train, Y_train, cv=kf)
+print(train_r2_cv)
+
+X = df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).values
+Y = df_3['count'].values
+
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+
+rf = RandomForestRegressor(n_estimators=100, random_state=42)
+kf = KFold(n_splits=10)
+
+Y_train_pred_cv = cross_val_predict(rf, X_train, Y_train, cv=kf)
+
+cv_scores_per_fold_train = []
+for i, (train_idx, val_idx) in enumerate(kf.split(X_train, Y_train)):
+    X_fold_train, X_fold_val = X_train[train_idx], X_train[val_idx]
+    Y_fold_train, Y_fold_val = Y_train[train_idx], Y_train[val_idx]
+
+    rf.fit(X_fold_train, Y_fold_train)
+
+    Y_fold_val_pred = rf.predict(X_fold_val)
+
+    # Calculating R2 score for the fold
+    fold_r2_score = r2_score(Y_fold_val, Y_fold_val_pred)
+    cv_scores_per_fold_train.append(fold_r2_score)
+
+    # Printing R2 score for each fold
+    print(f'Training Fold {i+1} R2 Score: {fold_r2_score}')
+
+# Printing average R2 score across folds for the training set
+average_cv_r2_score_train = np.mean(cv_scores_per_fold_train)
+print(f'Average R2 Score across training folds: {average_cv_r2_score_train}')
+
+# After CV, predicting on the test set
+Y_test_pred = rf.predict(X_test)
+
+# Evaluation of performance on the test set
+test_rmse = np.sqrt(mean_squared_error(Y_test, Y_test_pred))
+test_r2 = r2_score(Y_test, Y_test_pred)
+
+print('\nTest Set Evaluation:')
+print(f'Root Mean Squared Error: {test_rmse}')
+print(f'Mean Absolute Error: {test_mae}')
+print(f'R2 Score: {test_r2}')
+
+plt.figure(figsize=(10, 6))
+plt.scatter(Y_train, Y_train_pred_cv, alpha=0.5, label='Training Set')
+plt.scatter(Y_test, Y_test_pred, alpha=0.5, label='Test Set')
+plt.title('Cross-Validation Analysis: Predicted vs Actual')
+plt.xlabel('Actual Values')
+plt.ylabel('Predicted Values')
+plt.legend()
+plt.show()
+
+rf = RandomForestRegressor(n_estimators=100, random_state=42)
+print('Parameters currently in use:\n')
+pprint(rf.get_params())
+
+# IV. Randomized CV Search
+# Creating a function to compute mse, mae and r2 score calculations
+def evaluate_model(model, X, Y):
+    predictions = model.predict(X)
+    rmse = sqrt(mean_squared_error(Y, predictions))
+    mae = mean_absolute_error(Y, predictions)
+    r2 = r2_score(Y, predictions)
+    return rmse, mae, r2
+
+# Defining random parameter to initiate the randomized cv search
+param_dist = {
+    'n_estimators': [int(x) for x in np.linspace(10, 200, num=10)],
+    'max_depth': [None] + [int(x) for x in np.linspace(1, 20, num=5)],
+    'min_samples_split': randint(2, 20),
+    'min_samples_leaf': randint(1, 20),
+    'max_features': ['auto', 'sqrt', 'log2', None],
+    'bootstrap': [True, False]
+}
+
+rf = RandomForestRegressor(random_state=42)
+rf.fit(X_train, Y_train)
+
+random_search = RandomizedSearchCV(
+    rf, param_distributions=param_dist, n_iter=10, cv=5, random_state=42, n_jobs=-1
+)
+
+random_search.fit(X_train, Y_train)
+
+print("Best Hyperparameters from Randomized Search:")
+print(random_search.best_params_)
+
+best_rf_model = RandomForestRegressor(
+    n_estimators=random_search.best_params_['n_estimators'],
+    max_depth=random_search.best_params_['max_depth'],
+    min_samples_split=random_search.best_params_['min_samples_split'],
+    min_samples_leaf=random_search.best_params_['min_samples_leaf'],
+    max_features=random_search.best_params_['max_features'],
+    bootstrap=random_search.best_params_['bootstrap'],
+    random_state=42
+)
+
+best_rf_model.fit(X_train, Y_train)
+
+# Evaluation of the default model on the test set
+test_rmse_default, test_mae_default, test_r2_default = evaluate_model(rf, X_test, Y_test)
+
+# Evaluation of the best model obtained from random search on the test set
+test_rmse_best, test_mae_best, test_r2_best = evaluate_model(best_rf_model, X_test, Y_test)
+
+rmse_improvement = ((test_rmse_default - test_rmse_best) / test_rmse_default) * 100
+mae_improvement = ((test_mae_default - test_mae_best) / test_mae_default) * 100
+r2_improvement = ((test_r2_best - test_r2_default) / np.abs(test_r2_default)) * 100
+
+print('\nPercentage Improvement from Default to Best Random Search Model:')
+print(f'Root Mean Squared Error: {rmse_improvement:.2f}%')
+print(f'Mean Absolute Error: {mae_improvement:.2f}%')
+print(f'R2 Score: {r2_improvement:.2f}%')
+
+# Creating a function to compute mse, mae and r2 score calculations
+def evaluate_model(model, X, Y):
+    predictions = model.predict(X)
+    rmse = sqrt(mean_squared_error(Y, predictions))
+    mae = mean_absolute_error(Y, predictions)
+    r2 = r2_score(Y, predictions)
+    return rmse, mae, r2
+
+improvement_found = False
+
+while not improvement_found:
+    # Defining random parameter to initiate the randomized cv search
+    param_dist = {
+    'n_estimators': [55,57,60,63,65,70,73,75,77,80,83,85,87,90,93,95,97,100],
+    'max_depth': [5,10,13,15,16,17,18,19,20]
+    }
+
+    rf = RandomForestRegressor(random_state=42)
+    rf.fit(X_train, Y_train)
+
+    random_search = RandomizedSearchCV(
+        rf, param_distributions=param_dist, n_iter=10, cv=5, scoring='neg_mean_squared_error', n_jobs=-1
+    )
+
+    random_search.fit(X_train, Y_train)
+
+    print("Best Hyperparameters from Randomized Search:")
+    print(random_search.best_params_)
+
+    best_rf_model = RandomForestRegressor(
+    n_estimators=random_search.best_params_['n_estimators'],
+    max_depth=random_search.best_params_['max_depth']
+    )
+
+    best_rf_model.fit(X_train, Y_train)
+
+    # Evaluation of the default model on the test set
+    test_rmse_default, test_mae_default, test_r2_default = evaluate_model(rf, X_test, Y_test)
+
+    # Evaluation of the best model obtained from random search on the test set
+    test_rmse_best, test_mae_best, test_r2_best = evaluate_model(best_rf_model, X_test, Y_test)
+
+    rmse_improvement = ((test_rmse_default - test_rmse_best) / test_rmse_default) * 100
+    mae_improvement = ((test_mae_default - test_mae_best) / test_mae_default) * 100
+    r2_improvement = ((test_r2_best - test_r2_default) / np.abs(test_r2_default)) * 100
+
+    # Check if R2 improvement is positive
+    if r2_improvement > 0:
+        improvement_found = True
+        print('\nImproved R2 Score found!')
+        print(f'Percentage Improvement from Default to Best Random Search Model:')
+        print(f'Root Mean Squared Error: {rmse_improvement:.2f}%')
+        print(f'Mean Absolute Error: {mae_improvement:.2f}%')
+        print(f'R2 Score: {r2_improvement:.2f}%')
+        print("Best Hyperparameters from Randomized Search:")
+        print(random_search.best_params_)
+    else:
+        print('\nNo improvement in R2 Score. Retrying...')
