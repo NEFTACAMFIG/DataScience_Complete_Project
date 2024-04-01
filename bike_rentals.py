@@ -1217,3 +1217,53 @@ while not improvement_found:
         print(random_search.best_params_)
     else:
         print('\nNo improvement in R2 Score. Retrying...')
+
+# V. Grid Search
+param_grid = {
+    'n_estimators': [60,70,80,90,100],
+    'max_depth': [16,17,18,19,20],
+    'min_samples_split': [2,3,4,5,6],
+    'min_samples_leaf': [1,2,3,4,5,6],
+    'max_features': ['auto', 'sqrt', None],
+    'bootstrap': [True]
+}
+
+rf = RandomForestRegressor(random_state=42)
+rf.fit(X_train, Y_train)
+
+grid_search = GridSearchCV(
+    rf, param_grid=param_grid, cv=5, scoring='neg_mean_squared_error', n_jobs=-1
+)
+
+grid_search.fit(X_train, Y_train)
+
+print("Best Hyperparameters from Grid Search:")
+print(grid_search.best_params_)
+
+best_rf_model = RandomForestRegressor(
+    n_estimators=grid_search.best_params_['n_estimators'],
+    max_depth=grid_search.best_params_['max_depth'],
+    min_samples_split=grid_search.best_params_['min_samples_split'],
+    min_samples_leaf=grid_search.best_params_['min_samples_leaf'],
+    max_features=grid_search.best_params_['max_features'],
+    bootstrap=grid_search.best_params_['bootstrap'],
+    random_state=42
+)
+best_rf_model.fit(X_train, Y_train)
+
+# Evaluation of the default model on the test set
+test_mse_default, test_mae_default, test_r2_default = evaluate_model(rf, X_test, Y_test)
+
+# Evaluation of the best model obtained from grid search on the test set
+test_mse_best, test_mae_best, test_r2_best = evaluate_model(best_rf_model, X_test, Y_test)
+
+mse_improvement = ((test_mse_default - test_mse_best) / test_mse_default) * 100
+mae_improvement = ((test_mae_default - test_mae_best) / test_mae_default) * 100
+r2_improvement = ((test_r2_best - test_r2_default) / np.abs(test_r2_default)) * 100
+
+print('\nPercentage Improvement from Default to Best Grid Search Model:')
+print(f'Mean Squared Error: {mse_improvement:.2f}%')
+print(f'Mean Absolute Error: {mae_improvement:.2f}%')
+print(f'R2 Score: {r2_improvement:.2f}%')
+
+# E. Deep Learning Model
