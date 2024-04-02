@@ -1267,3 +1267,98 @@ print(f'Mean Absolute Error: {mae_improvement:.2f}%')
 print(f'R2 Score: {r2_improvement:.2f}%')
 
 # E. Deep Learning Model
+X = df_3.drop(columns = ['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).values
+Y = df_3[['count']].values
+
+X_traind, X_testd, y_traind, y_testd= train_test_split(X,Y, test_size=0.3)
+
+# III. Training the Model
+
+def r2_score_cus(y_true, y_pred):
+    residual = tf.reduce_sum(tf.square(tf.subtract(y_true, y_pred)))
+    total = tf.reduce_sum(tf.square(tf.subtract(y_true, tf.reduce_mean(y_true))))
+    r2 = tf.subtract(1.0, tf.divide(residual, total))
+    return r2
+
+model = Sequential()
+model.add(Dense(11, activation = 'relu'))
+model.add(Dense(11, activation = 'relu'))
+model.add(Dense(11, activation="relu"))
+model.add(Dense(1))
+
+model.compile(optimizer="adam", loss="mse", metrics=[r2_score_cus])
+
+model.fit(x= X_traind, y= y_traind, batch_size=32, epochs=500, validation_data=(X_testd, y_testd))
+
+# IV. Checking Loss Function
+#pd.DataFrame(model.history.history).plot(figsize=(12,7))
+t = pd.DataFrame(model.history.history)
+
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(y=t['loss'],
+                    mode='lines',
+                    name='Train'))
+fig.add_trace(go.Scatter(y=t['val_loss'],
+                    mode='lines',
+                    name='Validation'))
+
+fig.update_layout(font_color="#007CD8", title='Loss Function[MSE]', title_x=0.5, title_y = 0.85,
+                  legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, range=[0, 20000])
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/loss.html")
+
+# V. Checking R-squared Function
+fig = go.Figure()
+
+fig.add_trace(go.Scatter(y=t['r2_score_cus'],
+                    mode='lines',
+                    name='Train'))
+fig.add_trace(go.Scatter(y=t['val_r2_score_cus'],
+                    mode='lines',
+                    name='Validation'))
+
+fig.update_layout(font_color="#007CD8", title='R-squared', title_x=0.5, title_y = 0.85,
+                  legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10)
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10, range=[0.45, 1])
+fig.show()
+# fig.write_html("/content/drive/MyDrive/Imagenes/r2.html")
+
+# VI. Metrics
+predictions=model.predict(X_testd)
+
+mae_d = mean_absolute_error(y_testd, predictions)
+rmse_d = sqrt(mean_squared_error(y_testd, predictions))
+r2_d = r2_score(y_testd, predictions)
+
+print('MAE:', mae_d)
+print('RMSE: ', rmse_d)
+print('R2: ', r2_d)
+
+# VII. Checking Heteroscedasticity
+
+g = [y_testd[i][0] for i in range(len(y_testd))]
+h = [predictions[i][0] for i in range(len(predictions))]
+
+fig = go.Figure()
+fig.add_trace(go.Scatter(x=g, y=h,
+                    mode='markers',
+                    name='Predictions'))
+fig.add_trace(go.Scatter(x=g, y=g,
+                    mode='markers',
+                    name='Test Values'))
+
+fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.6
+))
+
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='#007CD8', ticklen=10, range=[-10,1000])
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor="#007CD8", ticklen=10)
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/predictions.html")
+
+# VIII. Hypertuning Parameters
