@@ -1362,3 +1362,30 @@ fig.show()
 #fig.write_html("/content/drive/MyDrive/Imagenes/predictions.html")
 
 # VIII. Hypertuning Parameters
+
+def dl_model2(optimizer='adam'):
+  model = Sequential()
+  model.add(Dense(11, activation = 'relu'))
+  model.add(Dense(11, activation = 'relu'))
+  model.add(Dense(11, activation="relu"))
+  model.add(Dense(1))
+
+  model.compile(optimizer=optimizer, loss="mse")
+  return model
+
+model = KerasRegressor(build_fn=dl_model2, verbose=0)
+
+param_grid = {
+    'batch_size': [32, 64, 128],
+    'epochs': [100, 300, 500],
+    #'optimizer': ['SGD', 'RMSprop', 'Adagrad', 'Adadelta', 'Adam', 'Adamax', 'Nadam']
+    'optimizer': ['Adam']
+}
+
+grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring='neg_mean_squared_error')
+grid_result = grid.fit(X_train, y_train)
+
+best_params = grid_result.best_params_
+print(best_params)
+
+#  Evaluation of All Models
