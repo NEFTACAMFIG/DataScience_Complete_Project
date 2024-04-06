@@ -1389,3 +1389,92 @@ best_params = grid_result.best_params_
 print(best_params)
 
 #  Evaluation of All Models
+# A. Performance Comparison of All Models
+fig = make_subplots(rows=2, cols=2,
+                    subplot_titles=("Multivariable Regression with Normalization", "Random Forest", "Decision Tree", "Deep Learning"),
+                    vertical_spacing=0.1, horizontal_spacing = 0.1)
+
+fig.add_trace(
+    go.Scatter(x = v_t, y=y_pred,
+               mode='markers',
+               #name="Predictions"
+               ),
+    row=1, col=1)
+
+fig.add_trace(
+    go.Scatter(x = v_t, y=v_t,
+               mode='markers',
+               #name="Test Values"
+               ),
+    row=1, col=1)
+
+fig.add_trace(
+    go.Scatter(x = v_y, y=Y_test_pred,
+               mode='markers',
+               #name="Predictions"
+               ),
+    row=1, col=2)
+
+fig.add_trace(
+    go.Scatter(x = v_y, y=v_y,
+               mode='markers',
+               #name="Test Values"
+               ),
+    row=1, col=2)
+
+fig.add_trace(
+    go.Scatter(x = dt_v, y=Y_pred_best,
+               mode='markers',
+               #name="Predictions"
+               ),
+    row=2, col=1)
+
+fig.add_trace(
+    go.Scatter(x = dt_v, y=dt_v,
+               mode='markers',
+               #name="Test Values"
+               ),
+    row=2, col=1)
+
+fig.add_trace(
+    go.Scatter(x = g, y=h,
+               mode='markers',
+               #name="Predictions"
+               ),
+    row=2, col=2)
+
+fig.add_trace(
+    go.Scatter(x = g, y=g,
+               mode='markers',
+               #name="Test Values"
+               ),
+    row=2, col=2)
+
+fig.update_layout(height=900, width=1300, showlegend=False)
+fig.show()
+
+#fig.write_html("/content/drive/MyDrive/Imagenes/4_Modelos.html")
+
+# B. Metrics Comparison for All Models
+models = ['Multivariable Regression', 'Polynomial Regression','Decision Tree', 'Random Forest', 'Deep Learning']
+#MAE_values = ["%.4f" % mae_mv, "%.4f" % mae_p, "%.4f" % test_mae , "%.4f" % test_mae_best, "%.4f" % mae_d]
+#RMSE_values = ["%.4f" % sqrt(mse_mv), "%.4f" % sqrt(mse_p), "%.4f" % test_mse, "%.4f" % test_rmse_best, "%.4f" % rmse_d]
+#r2_values = ["%.4f" % r2_mv, "%.4f" % r2_p, "%.4f" % test_r2, "%.4f" % test_r2_best, "%.4f" % r2_d]
+
+MAE_values = [2.8477, 2.1357, 33.0985, 26.1335, 37.3925]
+RMSE_values = [1.8795, 2.7236, 55.1739, 44.0920, 55.6255]
+r2_values = [0.4861, 0.6945, 0.9078, 0.9386, 0.9053]
+
+fig = go.Figure(data=[go.Table(columnwidth = [300,150,150,150],
+    header=dict(values=['Model','MAE', 'RMSE', 'R2'],
+                fill_color='rgba(12, 121, 203, 1.0)',
+                align='center',
+                font=dict(color='white', size=12),
+                height=40),
+    cells=dict(values=[models, MAE_values, RMSE_values, r2_values],
+               fill_color='lavender',
+               align='center',
+               height=40))
+])
+fig.update_layout(width=800, height=400)
+fig.show()
