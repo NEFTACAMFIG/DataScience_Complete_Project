@@ -1478,3 +1478,55 @@ fig = go.Figure(data=[go.Table(columnwidth = [300,150,150,150],
 ])
 fig.update_layout(width=800, height=400)
 fig.show()
+
+# C. Feature Importance Comparison
+# Decision Tree
+feature_importance_dt = best_dt_model.feature_importances_
+#Random Forest
+feature_importance_rf = rf.feature_importances_
+
+feature_importance_rfdt = pd.DataFrame({
+    'rfr':feature_importance_rf,
+    'dt': feature_importance_dt
+}, index = df_3.drop(columns=['rental_id', 'date', 'casual_rider', 'registered_rider', 'count', 'temperature', 'month']).columns)
+feature_importance_rfdt.sort_values(by='rfr', ascending = True, inplace = True)
+
+feature_importance_rfdt = feature_importance_rfdt.reset_index()
+
+fig = go.Figure()
+
+fig.add_trace(go.Bar(
+    y=feature_importance_rfdt['index'],
+    x=feature_importance_rfdt['dt'],
+    name='Feature Importance Decision Tree',
+    orientation='h',
+    marker=dict(
+        color='rgba(64, 108, 166, 1.0)',
+        line=dict(color='rgba(64, 108, 166, 1.0)', width=1)
+    )
+))
+
+fig.add_trace(go.Bar(
+    y=feature_importance_rfdt['index'],
+    x=feature_importance_rfdt['rfr'],
+    name='Feature Importance Random Forest',
+    orientation='h',
+    marker=dict(
+        color='rgba(107, 36, 135, 1)',
+        line=dict(color='rgba(107, 36, 135, 1)', width=1)
+    )
+))
+
+
+
+fig.update_layout(width=1300, height=750,title_text='Feature Importance Comparison', title_x=0.52, font_color="rgba(64, 108, 166, 1.0)",
+                  bargroupgap= 0.15, bargap= 0.1,
+                  legend=dict(orientation="h", yanchor="bottom", y=-0.2, xanchor="right", x=0.8
+))
+fig.update_yaxes(ticks="outside", tickwidth=2, tickcolor='rgba(64, 108, 166, 1.0)', ticklen=10)
+fig.update_xaxes(ticks="outside", tickwidth=2, tickcolor='rgba(64, 108, 166, 1.0)', ticklen=10)
+fig.update_traces(textposition='outside')
+
+
+fig.show()
+#fig.write_html("/content/drive/MyDrive/Imagenes/Features.html")
